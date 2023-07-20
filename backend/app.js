@@ -2,13 +2,14 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const path = require('path');
+require('dotenv').config();
 
 //Imoprtation des router books et user
 const booksRoutes = require('./routes/books')
 const userRoutes = require('./routes/user')
 
 //Ligne de code permettant de connecter l'API à la base de données MangoDB
-mongoose.connect('mongodb+srv://test:XVFAEKfOzyBXTKAj@cluster0.ti2p8gb.mongodb.net/?retryWrites=true&w=majority',
+mongoose.connect(`mongodb+srv://test:${process.env.MDP_MONGO_DB}@cluster0.ti2p8gb.mongodb.net/?retryWrites=true&w=majority`,
   { useNewUrlParser: true,
     useUnifiedTopology: true })
   .then(() => console.log('Connexion à MongoDB réussie !'))

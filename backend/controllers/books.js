@@ -59,43 +59,53 @@ exports.createBook = (req, res, next) => {
 //Nouvelle syntaxe de la méthode createBook incluant la logique métier des fichiers entrants
 exports.updateBook = (req, res, next) => {
     //console.log(req.file.path)
-    const bookObject = req.file ?
-    {
-        ...JSON.parse(req.body.book),
-        imageUrl: `${req.protocol}://${req.get('host')}/images/redim_${req.file.filename}`
-    } : { ...req.body }
-    if(req.file){
-        console.log(req.params.id)
-        Book.findOne({ _id: req.params.id }).then((book) =>{
-            console.log(book)
-            let filename = book.imageUrl.split('/images/')[1]
-            filename = `images/${filename}`
-            console.log(book.imageUrl)
-            console.log(filename)
-            fs.unlink( filename, (err) => {
+    Book.findOne({ _id: req.params.id }).then((book) =>{
+        if (book.userId != req.auth.userId) {
+            res.status(401).json({ message : 'Utilisateur non authorisé'});
+            fs.unlink( req.file.path, (err) => {
                 if(err){
-                    return res.status(400).json({message: "ça veux pas"})
+                    return res.status(400).json({message: "echec suppresion"})
                 }
             })
-            sharp(req.file.path).resize(700,600)
-            .toFile(`images/redim_${req.file.filename}`, (err) => {
-                if(err){
-                    return res.status(400).json({error : err.message})
-                }
-                fs.unlink(req.file.path, (err) => {
-                    console.log(req.file.path)
+            console.log(req.file)
+        } else {
+            const bookObject = req.file ?
+            {
+                ...JSON.parse(req.body.book),
+                imageUrl: `${req.protocol}://${req.get('host')}/images/redim_${req.file.filename}`
+            } : { ...req.body }
+            console.log(req.params.id)
+                if(req.file){
+                console.log(book)
+                let filename = book.imageUrl.split('/images/')[1]
+                filename = `images/${filename}`
+                console.log(book.imageUrl)
+                console.log(filename)
+                fs.unlink( filename, (err) => {
                     if(err){
-                        return res.status(400).json({error: err.message})
+                        return res.status(400).json({message: "echec suppresion"})
                     }
-                    bookObject.imageUrl = `${req.protocol}://${req.get("host")}/images/redim_${req.file.filename}` 
                 })
-            })
+                sharp(req.file.path).resize(700,600)
+                .toFile(`images/redim_${req.file.filename}`, (err) => {
+                    if(err){
+                        return res.status(400).json({error : err.message})
+                    }
+                    fs.unlink(req.file.path, (err) => {
+                        console.log(req.file.path)
+                        if(err){
+                            return res.status(400).json({error: err.message})
+                        }
+                        bookObject.imageUrl = `${req.protocol}://${req.get("host")}/images/redim_${req.file.filename}` 
+                    })
+                })
+            }
+            Book.updateOne({ _id: req.params.id }, { ...bookObject, _id: req.params.id })
+            .then(() => res.status(200).json({ message: 'Objet modifié !'}))
+            .catch(error => res.status(400).json({ error }));
+        }
         });
-    }
-    Book.updateOne({ _id: req.params.id }, { ...bookObject, _id: req.params.id })
-    .then(() => res.status(200).json({ message: 'Objet modifié !'}))
-    .catch(error => res.status(400).json({ error }));
-    }
+        }
 
 
 // exports.deleteBook = (req, res, next) => {
@@ -124,12 +134,16 @@ exports.updateBook = (req, res, next) => {
 exports.deleteBook = (req, res, next) => {
     Book.findOne({ _id: req.params.id })
     .then(book => {
-        const filename = book.imageUrl.split('/images/')[1]
-        fs.unlink(`images/${filename}`, () => {
-            Book.deleteOne({ _id: req.params.id })
-            .then(() => res.status(200).json({ message: 'Objet supprimé !'}))
-            .catch(error => res.status(400).json({ error }));
-        })
+        if (book.userId != req.auth.userId) {
+            res.status(401).json({ message : 'Utilisateur non authentifié'});
+        }else{
+            const filename = book.imageUrl.split('/images/')[1]
+            fs.unlink(`images/${filename}`, () => {
+                Book.deleteOne({ _id: req.params.id })
+                .then(() => res.status(200).json({ message: 'Objet supprimé !'}))
+                .catch(error => res.status(400).json({ error }));
+            })
+        }
     })
     .catch(error => res.status(500).json({ error }))
 }
@@ -179,7 +193,7 @@ exports.ratingBook = (async(req, res, next) => {
 
         else{
             console.log(found)
-            res.status(401).json({message :"error"}); 
+            res.status(403).json({message :"error"}); 
             } 
    });
    
